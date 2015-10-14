@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.io as sio
+import cPickle as pickle
 
 from copy import deepcopy
 
@@ -12,6 +14,23 @@ import caffe
 plt.rcParams['figure.figsize'] = (10, 10)
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
+
+path_prefix = '/home/bjkomer/deep_learning/datasets/DatasetEynsham/Images/'
+index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
+testing_start_index = 4804
+
+training_images = []
+testing_images = []
+
+for i in range(testing_start_index):
+  #TODO Smush images from the set of 5 together
+  for j in range(5):
+      training_images.append(index_mat[i][0,j][0])
+
+for i in range(testing_start_index, len(index_mat)):
+  #TODO Smush images from the set of 5 together
+  for j in range(5):
+      testing_images.append(index_mat[i][0,j][0])
 
 caffe.set_mode_cpu()
 net = caffe.Net(caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt',
@@ -28,14 +47,14 @@ transformer.set_channel_swap('data', (2,1,0))  # the reference model has channel
 # set net to batch size of 50
 net.blobs['data'].reshape(50,3,227,227)
 
-fileroot = '/home/bjkomer/Pictures/Textures/'
-filenames = ['Aircos0028_S.jpg', 'BrickLargeBare0124_7_S.jpg',
-             'BrickLargeBrown0017_2_S.jpg', 'BrickRound0046_2_S.jpg',
-             'BrickRound0098_7_S.jpg']
+#fileroot = '/home/bjkomer/Pictures/Textures/'
+#filenames = ['Aircos0028_S.jpg', 'BrickLargeBare0124_7_S.jpg',
+#             'BrickLargeBrown0017_2_S.jpg', 'BrickRound0046_2_S.jpg',
+#             'BrickRound0098_7_S.jpg']
 
 # just use the same for debugging for now
-training_images = filenames
-testing_images = filenames
+#training_images = filenames
+#testing_images = filenames
 
 # TODO: use something better than a list
 training_features = []
@@ -62,14 +81,13 @@ def vis_square(data, padsize=1, padval=0):
 
 # Get all the features for the training images
 for filename in training_images:
+  #TODO: should probably load these in batches, rather than one at a time
   net.blobs['data'].data[...] = transformer.preprocess('data',
-                                                       caffe.io.load_image(fileroot + filename))
+                                                       caffe.io.load_image(path_prefix + filename))
   out = net.forward()
   #print("Predicted class is #{}.".format(out['prob'].argmax()))
 
   feat = net.blobs['conv4'].data[0]
-
-  print(net.blobs['conv4'].data.shape)
 
   training_features.append(deepcopy(feat))
 
@@ -77,7 +95,7 @@ for filename in training_images:
 for j, filename in enumerate(testing_images):
 
   net.blobs['data'].data[...] = transformer.preprocess('data',
-                                                       caffe.io.load_image(fileroot + filename))
+                                                       caffe.io.load_image(path_prefix + filename))
   out = net.forward()
   #print("Predicted class is #{}.".format(out['prob'].argmax()))
 
@@ -87,12 +105,13 @@ for j, filename in enumerate(testing_images):
 
   #vis_square(feat, padval=0.5)
   for i in range(len(training_images)):
-    #vis_square(feat-training_features[i], padval=0.5)
-    confusion_matrix[i,j] = np.linalg.norm(feat*1e9 - training_features[i]*1e9)
+    vis_square(feat-training_features[i], padval=0.5)
+    confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
 
 
-for i in range(len(training_images)):
-  vis_square(training_features[i], padval=0.5)
+#for i in range(len(training_images)):
+#  vis_square(training_features[i], padval=0.5)
 
 print( confusion_matrix )
-print( confusion_matrix[0,1] )
+
+pickle.dump(confusion_matrix, open('confusion_matrix.p','wb'))
