@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as sio
 import cPickle as pickle
+import math
 
 from copy import deepcopy
 
@@ -17,17 +18,19 @@ plt.rcParams['image.cmap'] = 'gray'
 
 path_prefix = '/home/bjkomer/deep_learning/datasets/DatasetEynsham/Images/'
 index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
-testing_start_index = 4804
+testing_start_index = 10 #4804
+testing_end_index = 20 #len(index_mat)
 
 training_images = []
 testing_images = []
+batch_size = 50
 
 for i in range(testing_start_index):
   #TODO Smush images from the set of 5 together
   for j in range(5):
       training_images.append(index_mat[i][0,j][0])
 
-for i in range(testing_start_index, len(index_mat)):
+for i in range(testing_start_index, testing_end_index):
   #TODO Smush images from the set of 5 together
   for j in range(5):
       testing_images.append(index_mat[i][0,j][0])
@@ -45,7 +48,7 @@ transformer.set_raw_scale('data', 255)  # the reference model operates on images
 transformer.set_channel_swap('data', (2,1,0))  # the reference model has channels in BGR order instead of RGB
 
 # set net to batch size of 50
-net.blobs['data'].reshape(50,3,227,227)
+net.blobs['data'].reshape(batch_size,3,227,227)
 
 #fileroot = '/home/bjkomer/Pictures/Textures/'
 #filenames = ['Aircos0028_S.jpg', 'BrickLargeBare0124_7_S.jpg',
@@ -80,33 +83,128 @@ def vis_square(data, padsize=1, padval=0):
     plt.show()
 
 # Get all the features for the training images
-for filename in training_images:
-  #TODO: should probably load these in batches, rather than one at a time
-  net.blobs['data'].data[...] = transformer.preprocess('data',
-                                                       caffe.io.load_image(path_prefix + filename))
+b = 0
+for batch in range(int(len(training_images) / batch_size)):
+#for filename in training_images:
+  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                    caffe.io.load_image(path_prefix + x)),
+                                    training_images[b:b+batch_size])
   out = net.forward()
-  #print("Predicted class is #{}.".format(out['prob'].argmax()))
+  print("Training Batch %i of %i" % (batch, int(len(testing_images) / batch_size)))
 
-  feat = net.blobs['conv4'].data[0]
+  for bi in range(batch_size):
 
-  training_features.append(deepcopy(feat))
+    feat = net.blobs['conv4'].data[bi]
+    #vis_square(feat, padval=0.5)
 
-# Get all the features for the testing images and compare to eat training image
+    training_features.append(deepcopy(feat))
+  """
+  # Increment batch index
+  b += 1
+
+  # If batch is full, run the batch
+  if b == batch_size:
+      b = 0
+      out = net.forward()
+
+      for bi in range(batch_size):
+
+        feat = net.blobs['conv4'].data[bi]
+
+        training_features.append(deepcopy(feat))
+  """
+# Run the last partial batch if needed
+if len(training_images) % batch_size != 0:
+  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                    caffe.io.load_image(path_prefix + x)),
+                                    training_images[-len(training_images) % batch_size:])
+  out = net.forward()
+  print("Training Overflow Batch")
+
+  for bi in range(len(training_images) % batch_size):
+
+    feat = net.blobs['conv4'].data[bi]
+
+    training_features.append(deepcopy(feat))
+
+"""
+if b != 0:
+  out = net.forward()
+  for bi in range(b):
+
+    feat = net.blobs['conv4'].data[bi]
+
+    training_features.append(deepcopy(feat))
+
+b = 0
+"""
+j = 0
+for batch in range(int(len(testing_images) / batch_size)):
+#for filename in training_images:
+  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                    caffe.io.load_image(path_prefix + x)),
+                                    testing_images[b:b+batch_size])
+  out = net.forward()
+  print("Testing Batch %i of %i" % (batch, int(len(testing_images) / batch_size)))
+
+  for bi in range(batch_size):
+
+    feat = net.blobs['conv4'].data[bi]
+
+    for i in range(len(training_images)):
+      confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+    j += 1
+
+# Run the last partial batch if needed
+if len(testing_images) % batch_size != 0:
+  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                    caffe.io.load_image(path_prefix + x)),
+                                    testing_images[-len(testing_images) % batch_size:])
+  out = net.forward()
+  print("Testing Overflow Batch")
+
+  for bi in range(len(testing_images) % batch_size):
+
+    feat = net.blobs['conv4'].data[bi]
+
+    for i in range(len(training_images)):
+      confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+    j += 1
+
+
+"""
+# Get all the features for the testing images and compare to each training image
 for j, filename in enumerate(testing_images):
 
-  net.blobs['data'].data[...] = transformer.preprocess('data',
+  print("Testing Image: %i" % j)
+
+  net.blobs['data'].data[b,...] = transformer.preprocess('data',
                                                        caffe.io.load_image(path_prefix + filename))
+  # Increment batch index
+  b += 1
+
+  # If batch is full, run the batch
+  if b == batch_size:
+      b = 0
+      out = net.forward()
+
+      for bi in range(batch_size):
+
+        feat = net.blobs['conv4'].data[bi]
+
+        for i in range(len(training_images)):
+          confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+
+# Run the last partial batch if needed
+if b != 0:
   out = net.forward()
-  #print("Predicted class is #{}.".format(out['prob'].argmax()))
+  for bi in range(b):
 
-  feat = net.blobs['conv4'].data[0]
-
-  
-
-  #vis_square(feat, padval=0.5)
-  for i in range(len(training_images)):
-    vis_square(feat-training_features[i], padval=0.5)
-    confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+    feat = net.blobs['conv4'].data[bi]
+    
+    for i in range(len(training_images)):
+      confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+"""
 
 
 #for i in range(len(training_images)):
@@ -114,4 +212,5 @@ for j, filename in enumerate(testing_images):
 
 print( confusion_matrix )
 
-pickle.dump(confusion_matrix, open('confusion_matrix.p','wb'))
+pickle.dump(confusion_matrix, open('test_confusion_matrix.p','wb'))
+#pickle.dump(confusion_matrix, open('confusion_matrix.p','wb'))
