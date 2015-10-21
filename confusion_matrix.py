@@ -6,7 +6,7 @@ import math
 
 from copy import deepcopy
 
-caffe_root = '/home/bjkomer/caffe/'  # this file is expected to be in {caffe_root}/examples
+caffe_root = '/home/ctnuser/saubin/src/caffe/'  # this file is expected to be in {caffe_root}/examples
 import sys
 sys.path.insert(0, caffe_root + 'python')
 
@@ -16,10 +16,10 @@ plt.rcParams['figure.figsize'] = (10, 10)
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
-path_prefix = '/home/bjkomer/deep_learning/datasets/DatasetEynsham/Images/'
+path_prefix = '/home/ctnuser/saubin/src/datasets/DatasetEynsham/Images/'
 index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
-testing_start_index = 10 #4804
-testing_end_index = 20 #len(index_mat)
+testing_start_index = 4804
+testing_end_index = len(index_mat)
 
 training_images = []
 testing_images = []
@@ -35,7 +35,7 @@ for i in range(testing_start_index, testing_end_index):
   for j in range(5):
       testing_images.append(index_mat[i][0,j][0])
 
-caffe.set_mode_cpu()
+caffe.set_mode_gpu()
 net = caffe.Net(caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt',
                 caffe_root + 'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel',
                 caffe.TEST)
@@ -98,46 +98,23 @@ for batch in range(int(len(training_images) / batch_size)):
     #vis_square(feat, padval=0.5)
 
     training_features.append(deepcopy(feat))
-  """
-  # Increment batch index
-  b += 1
 
-  # If batch is full, run the batch
-  if b == batch_size:
-      b = 0
-      out = net.forward()
-
-      for bi in range(batch_size):
-
-        feat = net.blobs['conv4'].data[bi]
-
-        training_features.append(deepcopy(feat))
-  """
 # Run the last partial batch if needed
-if len(training_images) % batch_size != 0:
-  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+extra = len(training_images) % batch_size
+if extra != 0:
+  #net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+  net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
                                     caffe.io.load_image(path_prefix + x)),
-                                    training_images[-len(training_images) % batch_size:])
+                                    training_images[-extra:])
   out = net.forward()
   print("Training Overflow Batch")
 
-  for bi in range(len(training_images) % batch_size):
+  for bi in range(extra):
 
     feat = net.blobs['conv4'].data[bi]
 
     training_features.append(deepcopy(feat))
 
-"""
-if b != 0:
-  out = net.forward()
-  for bi in range(b):
-
-    feat = net.blobs['conv4'].data[bi]
-
-    training_features.append(deepcopy(feat))
-
-b = 0
-"""
 j = 0
 for batch in range(int(len(testing_images) / batch_size)):
 #for filename in training_images:
@@ -156,14 +133,16 @@ for batch in range(int(len(testing_images) / batch_size)):
     j += 1
 
 # Run the last partial batch if needed
-if len(testing_images) % batch_size != 0:
-  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+extra = len(testing_images) % batch_size
+if extra != 0:
+  #net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+  net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
                                     caffe.io.load_image(path_prefix + x)),
-                                    testing_images[-len(testing_images) % batch_size:])
+                                    testing_images[-extra:])
   out = net.forward()
   print("Testing Overflow Batch")
 
-  for bi in range(len(testing_images) % batch_size):
+  for bi in range(extra):
 
     feat = net.blobs['conv4'].data[bi]
 
