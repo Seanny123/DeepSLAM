@@ -90,7 +90,7 @@ for batch in range(int(len(training_images) / batch_size)):
                                     caffe.io.load_image(path_prefix + x)),
                                     training_images[b:b+batch_size])
   out = net.forward()
-  print("Training Batch %i of %i" % (batch, int(len(testing_images) / batch_size)))
+  print("Training Batch %i of %i" % (batch, int(len(training_images) / batch_size)))
 
   for bi in range(batch_size):
 
