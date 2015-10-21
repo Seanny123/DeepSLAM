@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.io as sio
 import cPickle as pickle
 import math
+import h5py
 
 from copy import deepcopy
 
@@ -11,6 +12,10 @@ import sys
 sys.path.insert(0, caffe_root + 'python')
 
 import caffe
+
+# Open an IPython session if an exception is found
+from IPython.core import ultratb
+sys.excepthook = ultratb.FormattedTB(mode='Verbose', color_scheme='Linux', call_pdb=1)
 
 plt.rcParams['figure.figsize'] = (10, 10)
 plt.rcParams['image.interpolation'] = 'nearest'
@@ -25,15 +30,34 @@ training_images = []
 testing_images = []
 batch_size = 50
 
-for i in range(testing_start_index):
-  #TODO Smush images from the set of 5 together
-  for j in range(5):
-      training_images.append(index_mat[i][0,j][0])
+# Smush the 5 images together into one, otherwise treat them separately
+smush = True
 
-for i in range(testing_start_index, testing_end_index):
-  #TODO Smush images from the set of 5 together
-  for j in range(5):
-      testing_images.append(index_mat[i][0,j][0])
+if smush:
+    # TODO: make sure concatenation is along the correct axis
+    for i in range(testing_start_index):
+        training_images.append([ index_mat[i][0,0][0],
+                                 index_mat[i][0,1][0],
+                                 index_mat[i][0,2][0],
+                                 index_mat[i][0,3][0],
+                                 index_mat[i][0,4][0],
+                               ])
+
+    for i in range(testing_start_index, testing_end_index):
+        testing_images.append([ index_mat[i][0,0][0],
+                                index_mat[i][0,1][0],
+                                index_mat[i][0,2][0],
+                                index_mat[i][0,3][0],
+                                index_mat[i][0,4][0],
+                              ])
+else:
+    for i in range(testing_start_index):
+      for j in range(5):
+          training_images.append(index_mat[i][0,j][0])
+
+    for i in range(testing_start_index, testing_end_index):
+      for j in range(5):
+          testing_images.append(index_mat[i][0,j][0])
 
 caffe.set_mode_gpu()
 net = caffe.Net(caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt',
@@ -82,13 +106,21 @@ def vis_square(data, padsize=1, padval=0):
     plt.imshow(data)
     plt.show()
 
+def smush_images(im_list):
+
+    return np.concatenate( map(lambda x: caffe.io.load_image(path_prefix + x), im_list) )
+
 # Get all the features for the training images
 b = 0
 for batch in range(int(len(training_images) / batch_size)):
-#for filename in training_images:
-  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-                                    caffe.io.load_image(path_prefix + x)),
-                                    training_images[b:b+batch_size])
+  if smush:
+    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                      smush_images(x)),
+                                      training_images[b:b+batch_size])
+  else:
+    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                      caffe.io.load_image(path_prefix + x)),
+                                      training_images[b:b+batch_size])
   out = net.forward()
   print("Training Batch %i of %i" % (batch, int(len(training_images) / batch_size)))
 
@@ -102,10 +134,14 @@ for batch in range(int(len(training_images) / batch_size)):
 # Run the last partial batch if needed
 extra = len(training_images) % batch_size
 if extra != 0:
-  #net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-  net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
-                                    caffe.io.load_image(path_prefix + x)),
-                                    training_images[-extra:])
+  if smush:
+      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                      smush_images(x)),
+                                      training_images[-extra:])
+  else:
+      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                      caffe.io.load_image(path_prefix + x)),
+                                      training_images[-extra:])
   out = net.forward()
   print("Training Overflow Batch")
 
@@ -118,9 +154,14 @@ if extra != 0:
 j = 0
 for batch in range(int(len(testing_images) / batch_size)):
 #for filename in training_images:
-  net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-                                    caffe.io.load_image(path_prefix + x)),
-                                    testing_images[b:b+batch_size])
+  if smush:
+    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                      smush_images(x)),
+                                      testing_images[b:b+batch_size])
+  else:
+    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                      caffe.io.load_image(path_prefix + x)),
+                                      testing_images[b:b+batch_size])
   out = net.forward()
   print("Testing Batch %i of %i" % (batch, int(len(testing_images) / batch_size)))
 
@@ -135,10 +176,14 @@ for batch in range(int(len(testing_images) / batch_size)):
 # Run the last partial batch if needed
 extra = len(testing_images) % batch_size
 if extra != 0:
-  #net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-  net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
-                                    caffe.io.load_image(path_prefix + x)),
-                                    testing_images[-extra:])
+  if smush:
+      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                      smush_images(x)),
+                                      testing_images[-extra:])
+  else:
+      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                      caffe.io.load_image(path_prefix + x)),
+                                      testing_images[-extra:])
   out = net.forward()
   print("Testing Overflow Batch")
 
@@ -190,6 +235,12 @@ if b != 0:
 #  vis_square(training_features[i], padval=0.5)
 
 print( confusion_matrix )
+print( "Saving Confusion Matrix to Pickle File..." )
+pickle.dump(confusion_matrix, open('test_confusion_matrix_smush.p','wb'))
+print( "Saving Complete!" )
 
-pickle.dump(confusion_matrix, open('test_confusion_matrix.p','wb'))
-#pickle.dump(confusion_matrix, open('confusion_matrix.p','wb'))
+print( "Saving Confusion Matrix to HDF5 File..." )
+h5f = h5py.File('confusion_matrixx_smush.h5', 'w')
+h5f.create_dataset('confusion_matrix_smush', data=confusion_matrix)
+h5f.close()
+print( "Saving Complete!" )
