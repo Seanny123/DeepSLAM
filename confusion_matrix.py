@@ -33,6 +33,9 @@ batch_size = 50
 # Smush the 5 images together into one, otherwise treat them separately
 smush = True
 
+# Which layer to get the features from
+layer = 'conv5'
+
 if smush:
     # TODO: make sure concatenation is along the correct axis
     for i in range(testing_start_index):
@@ -126,7 +129,7 @@ for batch in range(int(len(training_images) / batch_size)):
 
   for bi in range(batch_size):
 
-    feat = net.blobs['conv4'].data[bi]
+    feat = net.blobs[layer].data[bi]
     #vis_square(feat, padval=0.5)
 
     training_features.append(deepcopy(feat))
@@ -147,7 +150,7 @@ if extra != 0:
 
   for bi in range(extra):
 
-    feat = net.blobs['conv4'].data[bi]
+    feat = net.blobs[layer].data[bi]
 
     training_features.append(deepcopy(feat))
 
@@ -167,7 +170,7 @@ for batch in range(int(len(testing_images) / batch_size)):
 
   for bi in range(batch_size):
 
-    feat = net.blobs['conv4'].data[bi]
+    feat = net.blobs[layer].data[bi]
 
     for i in range(len(training_images)):
       confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
@@ -189,7 +192,7 @@ if extra != 0:
 
   for bi in range(extra):
 
-    feat = net.blobs['conv4'].data[bi]
+    feat = net.blobs[layer].data[bi]
 
     for i in range(len(training_images)):
       confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
@@ -235,12 +238,12 @@ if b != 0:
 #  vis_square(training_features[i], padval=0.5)
 
 print( confusion_matrix )
-print( "Saving Confusion Matrix to Pickle File..." )
-pickle.dump(confusion_matrix, open('test_confusion_matrix_smush.p','wb'))
-print( "Saving Complete!" )
+#print( "Saving Confusion Matrix to Pickle File..." )
+#pickle.dump(confusion_matrix, open('test_confusion_matrix_smush.p','wb'))
+#print( "Saving Complete!" )
 
 print( "Saving Confusion Matrix to HDF5 File..." )
-h5f = h5py.File('confusion_matrixx_smush.h5', 'w')
-h5f.create_dataset('confusion_matrix_smush', data=confusion_matrix)
+h5f = h5py.File('confusion_matrix_smush_%s.h5'%layer, 'w')
+h5f.create_dataset('confusion_matrix_smush_%s'%layer, data=confusion_matrix)
 h5f.close()
 print( "Saving Complete!" )
