@@ -28,13 +28,16 @@ testing_end_index = len(index_mat)
 
 training_images = []
 testing_images = []
-batch_size = 50
+
+# AlexNet can do a batch_size of 50
+# GoogLeNet needs a smaller batch_size, 10 works
+batch_size = 10 #50
 
 # Smush the 5 images together into one, otherwise treat them separately
 smush = True
 
 # Which layer to get the features from
-layer = 'conv5'
+layer = 'inception_4e/3x3' #'conv4'
 
 if smush:
     # TODO: make sure concatenation is along the correct axis
@@ -63,8 +66,8 @@ else:
           testing_images.append(index_mat[i][0,j][0])
 
 caffe.set_mode_gpu()
-net = caffe.Net(caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt',
-                caffe_root + 'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel',
+net = caffe.Net(caffe_root + 'models/bvlc_googlenet/deploy.prototxt',
+                caffe_root + 'models/bvlc_googlenet/bvlc_googlenet.caffemodel',
                 caffe.TEST)
 
 # input preprocessing: 'data' is the name of the input blob == net.inputs[0]
@@ -75,16 +78,8 @@ transformer.set_raw_scale('data', 255)  # the reference model operates on images
 transformer.set_channel_swap('data', (2,1,0))  # the reference model has channels in BGR order instead of RGB
 
 # set net to batch size of 50
-net.blobs['data'].reshape(batch_size,3,227,227)
-
-#fileroot = '/home/bjkomer/Pictures/Textures/'
-#filenames = ['Aircos0028_S.jpg', 'BrickLargeBare0124_7_S.jpg',
-#             'BrickLargeBrown0017_2_S.jpg', 'BrickRound0046_2_S.jpg',
-#             'BrickRound0098_7_S.jpg']
-
-# just use the same for debugging for now
-#training_images = filenames
-#testing_images = filenames
+#net.blobs['data'].reshape(batch_size,3,227,227) # AlexNet uses 227*227
+net.blobs['data'].reshape(batch_size,3,224,224) # GoogLeNet uses 224x224
 
 # TODO: use something better than a list
 training_features = []
@@ -156,7 +151,6 @@ if extra != 0:
 
 j = 0
 for batch in range(int(len(testing_images) / batch_size)):
-#for filename in training_images:
   if smush:
     net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
                                       smush_images(x)),
@@ -198,42 +192,6 @@ if extra != 0:
       confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
     j += 1
 
-
-"""
-# Get all the features for the testing images and compare to each training image
-for j, filename in enumerate(testing_images):
-
-  print("Testing Image: %i" % j)
-
-  net.blobs['data'].data[b,...] = transformer.preprocess('data',
-                                                       caffe.io.load_image(path_prefix + filename))
-  # Increment batch index
-  b += 1
-
-  # If batch is full, run the batch
-  if b == batch_size:
-      b = 0
-      out = net.forward()
-
-      for bi in range(batch_size):
-
-        feat = net.blobs['conv4'].data[bi]
-
-        for i in range(len(training_images)):
-          confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
-
-# Run the last partial batch if needed
-if b != 0:
-  out = net.forward()
-  for bi in range(b):
-
-    feat = net.blobs['conv4'].data[bi]
-    
-    for i in range(len(training_images)):
-      confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
-"""
-
-
 #for i in range(len(training_images)):
 #  vis_square(training_features[i], padval=0.5)
 
@@ -242,8 +200,11 @@ print( confusion_matrix )
 #pickle.dump(confusion_matrix, open('test_confusion_matrix_smush.p','wb'))
 #print( "Saving Complete!" )
 
-print( "Saving Confusion Matrix to HDF5 File..." )
-h5f = h5py.File('confusion_matrix_smush_%s.h5'%layer, 'w')
-h5f.create_dataset('confusion_matrix_smush_%s'%layer, data=confusion_matrix)
+# Remove any slashes from layer name
+layer = layer.replace('/','-')
+
+print( "Saving Confusion Matrix for %s to HDF5 File..." % layer )
+h5f = h5py.File('confusion_matrix_smush_googlenet_%s.h5' % layer, 'w')
+h5f.create_dataset('dataset', data=confusion_matrix)
 h5f.close()
 print( "Saving Complete!" )
