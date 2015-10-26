@@ -36,6 +36,8 @@ plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
 index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
+training_start_index = 0
+training_end_index = 4804
 testing_start_index = 4804
 testing_end_index = len(index_mat)
 
@@ -54,7 +56,7 @@ layer = 'inception_4e/3x3' #'conv4'
 
 if smush:
     # TODO: make sure concatenation is along the correct axis
-    for i in range(testing_start_index):
+    for i in range(training_start_index, training_end_index):
         training_images.append([ index_mat[i][0,0][0],
                                  index_mat[i][0,1][0],
                                  index_mat[i][0,2][0],
@@ -115,23 +117,23 @@ def vis_square(data, padsize=1, padval=0):
     data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
     
     plt.imshow(data)
-    plt.show()
+    plt.figure()
+    #plt.show()
 
 def smush_images(im_list):
 
     return np.concatenate( map(lambda x: caffe.io.load_image(path_prefix + x), im_list) )
 
 # Get all the features for the training images
-b = 0
 for batch in range(int(len(training_images) / batch_size)):
   if smush:
     net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
                                       smush_images(x)),
-                                      training_images[b:b+batch_size])
+                                      training_images[batch*batch_size:(batch+1)*batch_size])
   else:
     net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
                                       caffe.io.load_image(path_prefix + x)),
-                                      training_images[b:b+batch_size])
+                                      training_images[batch*batch_size:(batch+1)*batch_size])
   out = net.forward()
   print("Training Batch %i of %i" % (batch, int(len(training_images) / batch_size)))
 
@@ -167,11 +169,11 @@ for batch in range(int(len(testing_images) / batch_size)):
   if smush:
     net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
                                       smush_images(x)),
-                                      testing_images[b:b+batch_size])
+                                      testing_images[batch*batch_size:(batch+1)*batch_size])
   else:
     net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
                                       caffe.io.load_image(path_prefix + x)),
-                                      testing_images[b:b+batch_size])
+                                      testing_images[batch*batch_size:(batch+1)*batch_size])
   out = net.forward()
   print("Testing Batch %i of %i" % (batch, int(len(testing_images) / batch_size)))
 
@@ -207,6 +209,7 @@ if extra != 0:
 
 #for i in range(len(training_images)):
 #  vis_square(training_features[i], padval=0.5)
+#plt.show()
 
 print( confusion_matrix )
 #print( "Saving Confusion Matrix to Pickle File..." )
@@ -217,7 +220,7 @@ print( confusion_matrix )
 layer = layer.replace('/','-')
 
 print( "Saving Confusion Matrix for %s to HDF5 File..." % layer )
-h5f = h5py.File('confusion_matrix_smush_googlenet_%s.h5' % layer, 'w')
+h5f = h5py.File('conf_mat_smush_googlenet_%s.h5' % layer, 'w')
 h5f.create_dataset('dataset', data=confusion_matrix)
 h5f.close()
 print( "Saving Complete!" )
