@@ -4,11 +4,25 @@ import scipy.io as sio
 import cPickle as pickle
 import math
 import h5py
-
+import getpass
+import sys
 from copy import deepcopy
 
-caffe_root = '/home/ctnuser/saubin/src/caffe/'  # this file is expected to be in {caffe_root}/examples
-import sys
+# Check the username, so the same code can work on all of our computers
+user = getpass.getuser()
+if user == 'ctnuser':
+  caffe_root = '/home/ctnuser/saubin/src/caffe/'
+  path_prefix = '/home/ctnuser/saubin/src/datasets/DatasetEynsham/Images/'
+elif user == 'bjkomer':
+  caffe_root = '/home/bjkomer/caffe/'
+  path_prefix = '/home/bjkomer/deep_learning/datasets/DatasetEynsham/Images/'
+elif user == 'saubin': #TODO: put in Sean's actual path, I just guessed for now
+  caffe_root = '/home/saubin/src/caffe/'
+  path_prefix = '/home/saubin/src/datasets/DatasetEynsham/Images/'
+else:
+  caffe_root = '/home/ctnuser/saubin/src/caffe/'
+  path_prefix = '/home/ctnuser/saubin/src/datasets/DatasetEynsham/Images/'
+
 sys.path.insert(0, caffe_root + 'python')
 
 import caffe
@@ -21,7 +35,6 @@ plt.rcParams['figure.figsize'] = (10, 10)
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
-path_prefix = '/home/ctnuser/saubin/src/datasets/DatasetEynsham/Images/'
 index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
 testing_start_index = 4804
 testing_end_index = len(index_mat)
