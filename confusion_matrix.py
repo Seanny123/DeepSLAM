@@ -15,7 +15,9 @@ smush = True
 full = True
 
 # The type of pre-trained deep network to get the features from
-net_type = 'GoogLeNet' #'AlexNet'
+net_type = 'GoogLeNet'
+#net_type = 'AlexNet'
+#net_type = 'CaffeNet'
 
 # Check the username, so the same code can work on all of our computers
 user = getpass.getuser()
@@ -66,15 +68,15 @@ testing_images = []
 # GoogLeNet needs a smaller batch_size, 10 works
 if net_type == 'GoogLeNet':
   batch_size = 10
-elif net_type == 'AlexNet':
+elif net_type == 'AlexNet' or net_type == 'CaffeNet':
   batch_size = 50
 
 
 # Which layer to get the features from
 if net_type == 'GoogLeNet':
-  layer = 'inception_4c/3x3'
-elif net_type == 'AlexNet':
-  layer = 'conv4'
+  layer = 'inception_4e/3x3'
+elif net_type == 'AlexNet' or net_type == 'CaffeNet':
+  layer = 'conv3'
 
 if smush:
     # TODO: make sure concatenation is along the correct axis
@@ -102,10 +104,24 @@ else:
       for j in range(5):
           testing_images.append(index_mat[i][0,j][0])
 
-caffe.set_mode_gpu()
-net = caffe.Net(caffe_root + 'models/bvlc_googlenet/deploy.prototxt',
-                caffe_root + 'models/bvlc_googlenet/bvlc_googlenet.caffemodel',
-                caffe.TEST)
+if user == 'ctnuser':
+  caffe.set_mode_gpu()
+else:
+  caffe.set_mode_cpu()
+
+
+if net_type == 'GoogLeNet':
+  net = caffe.Net(caffe_root + 'models/bvlc_googlenet/deploy.prototxt',
+                  caffe_root + 'models/bvlc_googlenet/bvlc_googlenet.caffemodel',
+                  caffe.TEST)
+elif net_type == 'CaffeNet':
+  net = caffe.Net(caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt',
+                  caffe_root + 'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel',
+                  caffe.TEST)
+elif net_type == 'AlexNet':
+  net = caffe.Net(caffe_root + 'models/bvlc_alexnet/deploy.prototxt',
+                  caffe_root + 'models/bvlc_alexnet/bvlc_alexnet.caffemodel',
+                  caffe.TEST)
 
 # input preprocessing: 'data' is the name of the input blob == net.inputs[0]
 transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
@@ -117,7 +133,7 @@ transformer.set_channel_swap('data', (2,1,0))  # the reference model has channel
 # set net batch size
 if net_type == 'GoogLeNet':
   net.blobs['data'].reshape(batch_size,3,224,224) # GoogLeNet uses 224x224
-elif net_type == 'AlexNet':
+elif net_type == 'AlexNet' or net_type == 'CaffeNet':
   net.blobs['data'].reshape(batch_size,3,227,227) # AlexNet uses 227*227
 
 # TODO: use something better than a list
