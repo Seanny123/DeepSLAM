@@ -1,0 +1,13 @@
+# Output Files
+
+*.p
+*.h5
+
+# Temporary Files
+
+*.swp
+
+# Images
+
+*.jpg
+*.png
