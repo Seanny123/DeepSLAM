@@ -127,8 +127,8 @@ index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][
 # The dataset itself claims 4804 is the split point, but this looks to be incorrect
 if full:
   training_start_index = 0
-  training_end_index = len(index_mat)#4789 #4804
-  testing_start_index = 0#4789 #4804
+  training_end_index = len(index_mat)
+  testing_start_index = 0
   testing_end_index = len(index_mat)
 else:
   training_start_index = 0
@@ -219,16 +219,16 @@ if net_type == 'OverFeat':
 
     b = overfeat.fprop(image)
 
-    for j in range(len(testing_images)):
+    for j in range(len(training_images)):
       if layer == 'all':
         for n in range(num_layers):
           feat = overfeat.get_output(n)
         
-          confusion_matrix[n,i,j] = np.linalg.norm(feat - training_features[i][n])
+          confusion_matrix[n,j,i] = np.linalg.norm(feat - training_features[j][n])
       else:
         feat = overfeat.get_output(layer)
       
-        confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+        confusion_matrix[j,i] = np.linalg.norm(feat - training_features[j])
 
   # Convert to string in case it is a layer number, for use in the filename
   layer = str(layer)
@@ -380,7 +380,8 @@ fname += '_' + net_type.lower() + '_' + layer + '.h5'
 
 # Save to HDF5 format
 print( "Saving Confusion Matrix for %s to HDF5 File..." % layer )
-h5f = h5py.File(fname, 'w')
+h5f = h5py.File('temp_' + fname, 'w')
+#h5f = h5py.File(fname, 'w')
 h5f.create_dataset('dataset', data=confusion_matrix)
 h5f.close()
 print( "Saving Complete!" )
