@@ -380,8 +380,7 @@ fname += '_' + net_type.lower() + '_' + layer + '.h5'
 
 # Save to HDF5 format
 print( "Saving Confusion Matrix for %s to HDF5 File..." % layer )
-h5f = h5py.File('temp_' + fname, 'w')
-#h5f = h5py.File(fname, 'w')
+h5f = h5py.File(fname, 'w')
 h5f.create_dataset('dataset', data=confusion_matrix)
 h5f.close()
 print( "Saving Complete!" )
