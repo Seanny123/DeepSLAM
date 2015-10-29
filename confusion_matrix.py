@@ -6,6 +6,9 @@ import math
 import h5py
 import getpass
 import sys
+import overfeat
+from scipy.ndimage import imread
+from scipy.misc import imresize
 from copy import deepcopy
 
 # Smush the 5 images together into one, otherwise treat them separately
@@ -14,24 +17,32 @@ smush = True
 # Create the full confusion matrix, including sections not needed
 full = True
 
+# Whether or not the images have a colour channel
+colour = False
+
 # The type of pre-trained deep network to get the features from
-net_type = 'GoogLeNet'
+#net_type = 'GoogLeNet'
 #net_type = 'AlexNet'
 #net_type = 'CaffeNet'
+net_type = 'OverFeat'
 
 # Check the username, so the same code can work on all of our computers
 user = getpass.getuser()
 if user == 'ctnuser':
   caffe_root = '/home/ctnuser/saubin/src/caffe/'
+  overfeat_root = '/home/ctnuser/saubin/src/OverFeat/'
   path_prefix = '/home/ctnuser/saubin/src/datasets/DatasetEynsham/Images/'
 elif user == 'bjkomer':
   caffe_root = '/home/bjkomer/caffe/'
+  overfeat_root = '/home/bjkomer/OverFeat/'
   path_prefix = '/home/bjkomer/deep_learning/datasets/DatasetEynsham/Images/'
 elif user == 'saubin': #TODO: put in Sean's actual path, I just guessed for now
   caffe_root = '/home/saubin/src/caffe/'
+  overfeat_root = '/home/saubin/src/OverFeat/'
   path_prefix = '/home/saubin/src/datasets/DatasetEynsham/Images/'
 else:
   caffe_root = '/home/ctnuser/saubin/src/caffe/'
+  overfeat_root = '/home/ctnuser/saubin/src/OverFeat/'
   path_prefix = '/home/ctnuser/saubin/src/datasets/DatasetEynsham/Images/'
 
 sys.path.insert(0, caffe_root + 'python')
@@ -42,9 +53,73 @@ import caffe
 from IPython.core import ultratb
 sys.excepthook = ultratb.FormattedTB(mode='Verbose', color_scheme='Linux', call_pdb=1)
 
+# Stuff for optional plotting
 plt.rcParams['figure.figsize'] = (10, 10)
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
+
+# take an array of shape (n, height, width) or (n, height, width, channels)
+# and visualize each (height, width) thing in a grid of size approx. sqrt(n) by sqrt(n)
+def vis_square(data, padsize=1, padval=0):
+    data -= data.min()
+    data /= data.max()
+
+    # force the number of filters to be square
+    n = int(np.ceil(np.sqrt(data.shape[0])))
+    padding = ((0, n ** 2 - data.shape[0]), (0, padsize), (0, padsize)) + ((0, 0),) * (data.ndim - 3)
+    data = np.pad(data, padding, mode='constant', constant_values=(padval, padval))
+
+    # tile the filters into an image
+    data = data.reshape((n, n) + data.shape[1:]).transpose((0, 2, 1, 3) + tuple(range(4, data.ndim + 1)))
+    data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
+
+    plt.imshow(data)
+    plt.figure()
+    #plt.show()
+
+def smush_images(im_list):
+
+    return np.concatenate( map(lambda x: caffe.io.load_image(path_prefix + x), im_list) )
+
+def process_overfeat_image(image):
+    
+    # resize and crop into a 231x231 image
+    h0 = image.shape[0]
+    w0 = image.shape[1]
+    d0 = float(min(h0, w0))
+
+    # TODO: make this less hacky and more legit (if possible)
+    if not colour:
+      # Copy the monochrome image to all three channels to make OverFeat happy
+      image = image.reshape(h0,w0,1)
+      image = np.concatenate([image, image, image], axis=2)
+
+    image = image[int(round((h0-d0)/2.)):int(round((h0-d0)/2.)+d0),
+                  int(round((w0-d0)/2.)):int(round((w0-d0)/2.)+d0), :]
+    image = imresize(image, (231, 231)).astype(np.float32)
+
+    # numpy loads image with colors as last dimension, transpose tensor
+    h = image.shape[0]
+    w = image.shape[1]
+    c = image.shape[2]
+    image = image.reshape(w*h, c)
+    image = image.transpose()
+    image = image.reshape(c, h, w)
+
+    return image
+
+def load_overfeat_image(im):
+    # read image
+    return process_overfeat_image(imread(path_prefix + im))
+
+
+def smush_overfeat_images(im_list):
+    
+    return process_overfeat_image(np.concatenate( map(lambda x:
+                                                      imread(path_prefix + x),
+                                                      im_list) ))
+
+    
 
 index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
 
@@ -63,20 +138,6 @@ else:
 
 training_images = []
 testing_images = []
-
-# AlexNet can do a batch_size of 50
-# GoogLeNet needs a smaller batch_size, 10 works
-if net_type == 'GoogLeNet':
-  batch_size = 10
-elif net_type == 'AlexNet' or net_type == 'CaffeNet':
-  batch_size = 50
-
-
-# Which layer to get the features from
-if net_type == 'GoogLeNet':
-  layer = 'inception_4e/3x3'
-elif net_type == 'AlexNet' or net_type == 'CaffeNet':
-  layer = 'conv3'
 
 if smush:
     # TODO: make sure concatenation is along the correct axis
@@ -104,148 +165,203 @@ else:
       for j in range(5):
           testing_images.append(index_mat[i][0,j][0])
 
-if user == 'ctnuser':
-  caffe.set_mode_gpu()
-else:
-  caffe.set_mode_cpu()
-
-
-if net_type == 'GoogLeNet':
-  net = caffe.Net(caffe_root + 'models/bvlc_googlenet/deploy.prototxt',
-                  caffe_root + 'models/bvlc_googlenet/bvlc_googlenet.caffemodel',
-                  caffe.TEST)
-elif net_type == 'CaffeNet':
-  net = caffe.Net(caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt',
-                  caffe_root + 'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel',
-                  caffe.TEST)
-elif net_type == 'AlexNet':
-  net = caffe.Net(caffe_root + 'models/bvlc_alexnet/deploy.prototxt',
-                  caffe_root + 'models/bvlc_alexnet/bvlc_alexnet.caffemodel',
-                  caffe.TEST)
-
-# input preprocessing: 'data' is the name of the input blob == net.inputs[0]
-transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
-transformer.set_transpose('data', (2,0,1))
-transformer.set_mean('data', np.load(caffe_root + 'python/caffe/imagenet/ilsvrc_2012_mean.npy').mean(1).mean(1)) # mean pixel
-transformer.set_raw_scale('data', 255)  # the reference model operates on images in [0,255] range instead of [0,1]
-transformer.set_channel_swap('data', (2,1,0))  # the reference model has channels in BGR order instead of RGB
-
-# set net batch size
-if net_type == 'GoogLeNet':
-  net.blobs['data'].reshape(batch_size,3,224,224) # GoogLeNet uses 224x224
-elif net_type == 'AlexNet' or net_type == 'CaffeNet':
-  net.blobs['data'].reshape(batch_size,3,227,227) # AlexNet uses 227*227
-
 # TODO: use something better than a list
 training_features = []
 
-confusion_matrix = np.zeros((len(training_images), len(testing_images)))
-
-# take an array of shape (n, height, width) or (n, height, width, channels)
-# and visualize each (height, width) thing in a grid of size approx. sqrt(n) by sqrt(n)
-def vis_square(data, padsize=1, padval=0):
-    data -= data.min()
-    data /= data.max()
-
-    # force the number of filters to be square
-    n = int(np.ceil(np.sqrt(data.shape[0])))
-    padding = ((0, n ** 2 - data.shape[0]), (0, padsize), (0, padsize)) + ((0, 0),) * (data.ndim - 3)
-    data = np.pad(data, padding, mode='constant', constant_values=(padval, padval))
-
-    # tile the filters into an image
-    data = data.reshape((n, n) + data.shape[1:]).transpose((0, 2, 1, 3) + tuple(range(4, data.ndim + 1)))
-    data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
-
-    plt.imshow(data)
-    plt.figure()
-    #plt.show()
-
-def smush_images(im_list):
-
-    return np.concatenate( map(lambda x: caffe.io.load_image(path_prefix + x), im_list) )
-
-# Get all the features for the training images
-for batch in range(int(len(training_images) / batch_size)):
-  if smush:
-    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-                                      smush_images(x)),
-                                      training_images[batch*batch_size:(batch+1)*batch_size])
+# OverFeat does not use caffe
+if net_type == 'OverFeat':
+  
+  # OverFeat has 22 layers, including original image
+  num_layers = 22
+  
+  # For filename purposes
+  layer = 'all'
+  layer = 10
+  
+  if layer == 'all':
+    # Put all layers into one stacked confusion matrix
+    confusion_matrix = np.zeros((num_layers, len(training_images), len(testing_images)))
   else:
-    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-                                      caffe.io.load_image(path_prefix + x)),
-                                      training_images[batch*batch_size:(batch+1)*batch_size])
-  out = net.forward()
-  print("Training Batch %i of %i" % (batch, int(len(training_images) / batch_size)))
+    # Make the confusion matrix for a single layer
+    confusion_matrix = np.zeros((len(training_images), len(testing_images)))
 
-  for bi in range(batch_size):
+  overfeat.init(overfeat_root + 'data/default/net_weight_0', 0)
+  
+  for i in range(len(training_images)):
 
-    feat = net.blobs[layer].data[bi]
-    #vis_square(feat, padval=0.5)
+    print("Training Image %s of %s" % (i, len(training_images)))
 
-    training_features.append(deepcopy(feat))
+    if smush:
+      image = smush_overfeat_images(training_images[i])
+    else:
+      image = load_overfeat_image(training_images[i])
 
-# Run the last partial batch if needed
-extra = len(training_images) % batch_size
-if extra != 0:
-  if smush:
-      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
-                                      smush_images(x)),
-                                      training_images[-extra:])
+    b = overfeat.fprop(image)
+    
+    if layer == 'all':
+      # Calculate features for all layers at once
+      features = []
+      for n in range(num_layers):
+        features.append(deepcopy(overfeat.get_output(n)))
+
+      training_features.append(features)
+    else:
+      training_features.append(deepcopy(overfeat.get_output(layer)))
+  
+  for i in range(len(testing_images)):
+
+    print("Testing Image %s of %s" % (i, len(testing_images)))
+
+    if smush:
+      image = smush_overfeat_images(testing_images[i])
+    else:
+      image = load_overfeat_image(testing_images[i])
+
+    b = overfeat.fprop(image)
+
+    for j in range(len(testing_images)):
+      if layer == 'all':
+        for n in range(num_layers):
+          feat = overfeat.get_output(n)
+        
+          confusion_matrix[n,i,j] = np.linalg.norm(feat - training_features[i][n])
+      else:
+        feat = overfeat.get_output(layer)
+      
+        confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+
+  # Convert to string in case it is a layer number, for use in the filename
+  layer = str(layer)
+
+# Use caffe for all other models
+else:
+  confusion_matrix = np.zeros((len(training_images), len(testing_images)))
+  
+  if user == 'ctnuser':
+    caffe.set_mode_gpu()
   else:
-      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
-                                      caffe.io.load_image(path_prefix + x)),
-                                      training_images[-extra:])
-  out = net.forward()
-  print("Training Overflow Batch")
+    caffe.set_mode_cpu()
 
-  for bi in range(extra):
 
-    feat = net.blobs[layer].data[bi]
+  if net_type == 'GoogLeNet':
+    net = caffe.Net(caffe_root + 'models/bvlc_googlenet/deploy.prototxt',
+                    caffe_root + 'models/bvlc_googlenet/bvlc_googlenet.caffemodel',
+                    caffe.TEST)
+  elif net_type == 'CaffeNet':
+    net = caffe.Net(caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt',
+                    caffe_root + 'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel',
+                    caffe.TEST)
+  elif net_type == 'AlexNet':
+    net = caffe.Net(caffe_root + 'models/bvlc_alexnet/deploy.prototxt',
+                    caffe_root + 'models/bvlc_alexnet/bvlc_alexnet.caffemodel',
+                    caffe.TEST)
 
-    training_features.append(deepcopy(feat))
+  # input preprocessing: 'data' is the name of the input blob == net.inputs[0]
+  transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
+  transformer.set_transpose('data', (2,0,1))
+  transformer.set_mean('data', np.load(caffe_root + 'python/caffe/imagenet/ilsvrc_2012_mean.npy').mean(1).mean(1)) # mean pixel
+  transformer.set_raw_scale('data', 255)  # the reference model operates on images in [0,255] range instead of [0,1]
+  transformer.set_channel_swap('data', (2,1,0))  # the reference model has channels in BGR order instead of RGB
 
-j = 0
-for batch in range(int(len(testing_images) / batch_size)):
-  if smush:
-    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-                                      smush_images(x)),
-                                      testing_images[batch*batch_size:(batch+1)*batch_size])
-  else:
-    net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
-                                      caffe.io.load_image(path_prefix + x)),
-                                      testing_images[batch*batch_size:(batch+1)*batch_size])
-  out = net.forward()
-  print("Testing Batch %i of %i" % (batch, int(len(testing_images) / batch_size)))
+  # AlexNet can do a batch_size of 50
+  # GoogLeNet needs a smaller batch_size, 10 works
+  # They also have different names for each layer
+  if net_type == 'GoogLeNet':
+    batch_size = 10
+    layer = 'inception_4e/3x3'
+    net.blobs['data'].reshape(batch_size,3,224,224) # GoogLeNet uses 224x224
+  elif net_type == 'AlexNet' or net_type == 'CaffeNet':
+    batch_size = 50
+    layer = 'conv3'
+    net.blobs['data'].reshape(batch_size,3,227,227) # AlexNet uses 227*227
 
-  for bi in range(batch_size):
+  # Get all the features for the training images
+  for batch in range(int(len(training_images) / batch_size)):
+    if smush:
+      net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                        smush_images(x)),
+                                        training_images[batch*batch_size:(batch+1)*batch_size])
+    else:
+      net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                        caffe.io.load_image(path_prefix + x)),
+                                        training_images[batch*batch_size:(batch+1)*batch_size])
+    out = net.forward()
+    print("Training Batch %i of %i" % (batch, int(len(training_images) / batch_size)))
 
-    feat = net.blobs[layer].data[bi]
+    for bi in range(batch_size):
 
-    for i in range(len(training_images)):
-      confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
-    j += 1
+      feat = net.blobs[layer].data[bi]
+      #vis_square(feat, padval=0.5)
 
-# Run the last partial batch if needed
-extra = len(testing_images) % batch_size
-if extra != 0:
-  if smush:
-      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
-                                      smush_images(x)),
-                                      testing_images[-extra:])
-  else:
-      net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
-                                      caffe.io.load_image(path_prefix + x)),
-                                      testing_images[-extra:])
-  out = net.forward()
-  print("Testing Overflow Batch")
+      training_features.append(deepcopy(feat))
 
-  for bi in range(extra):
+  # Run the last partial batch if needed
+  extra = len(training_images) % batch_size
+  if extra != 0:
+    if smush:
+        net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                        smush_images(x)),
+                                        training_images[-extra:])
+    else:
+        net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                        caffe.io.load_image(path_prefix + x)),
+                                        training_images[-extra:])
+    out = net.forward()
+    print("Training Overflow Batch")
 
-    feat = net.blobs[layer].data[bi]
+    for bi in range(extra):
 
-    for i in range(len(training_images)):
-      confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
-    j += 1
+      feat = net.blobs[layer].data[bi]
+
+      training_features.append(deepcopy(feat))
+
+  j = 0
+  for batch in range(int(len(testing_images) / batch_size)):
+    if smush:
+      net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                        smush_images(x)),
+                                        testing_images[batch*batch_size:(batch+1)*batch_size])
+    else:
+      net.blobs['data'].data[...] = map(lambda x: transformer.preprocess('data',
+                                        caffe.io.load_image(path_prefix + x)),
+                                        testing_images[batch*batch_size:(batch+1)*batch_size])
+    out = net.forward()
+    print("Testing Batch %i of %i" % (batch, int(len(testing_images) / batch_size)))
+
+    for bi in range(batch_size):
+
+      feat = net.blobs[layer].data[bi]
+
+      for i in range(len(training_images)):
+        confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+      j += 1
+
+  # Run the last partial batch if needed
+  extra = len(testing_images) % batch_size
+  if extra != 0:
+    if smush:
+        net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                        smush_images(x)),
+                                        testing_images[-extra:])
+    else:
+        net.blobs['data'].data[:extra,...] = map(lambda x: transformer.preprocess('data',
+                                        caffe.io.load_image(path_prefix + x)),
+                                        testing_images[-extra:])
+    out = net.forward()
+    print("Testing Overflow Batch")
+
+    for bi in range(extra):
+
+      feat = net.blobs[layer].data[bi]
+
+      for i in range(len(training_images)):
+        confusion_matrix[i,j] = np.linalg.norm(feat - training_features[i])
+      j += 1
+
+  # Remove any slashes from layer name
+  layer = layer.replace('/','-')
+
+
 
 # Optional plotting of features
 #for i in range(len(training_images)):
@@ -253,9 +369,6 @@ if extra != 0:
 #plt.show()
 
 print( confusion_matrix )
-
-# Remove any slashes from layer name
-layer = layer.replace('/','-')
 
 # Construct file name
 fname = 'conf_mat'
