@@ -12,7 +12,7 @@ from scipy.misc import imresize
 from copy import deepcopy
 
 # Smush the 5 images together into one, otherwise treat them separately
-smush = True
+smush = False#True
 
 # Create the full confusion matrix, including sections not needed
 full = True
@@ -157,7 +157,7 @@ if smush:
                                 index_mat[i][0,4][0],
                               ])
 else:
-    for i in range(testing_start_index):
+    for i in range(training_start_index, training_end_index):
       for j in range(5):
           training_images.append(index_mat[i][0,j][0])
 
@@ -176,7 +176,7 @@ if net_type == 'OverFeat':
   
   # For filename purposes
   layer = 'all'
-  layer = 10
+  layer = 14
   
   if layer == 'all':
     # Put all layers into one stacked confusion matrix
