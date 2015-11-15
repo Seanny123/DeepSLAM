@@ -18,7 +18,7 @@ sys.excepthook = ultratb.FormattedTB(mode='Verbose',
 ### Get matches from confusion matrix ###
 
 # load the confusion matrix
-fname = "conf_mat_smush_full_overfeat_10.h5"
+fname = "C:\\Users\\saubin\\Desktop\\DeepSLAM\\conf_mat_smush_full_overfeat_10.h5"
 dname = "dataset"
 print("opening file")
 h5f = h5py.File(fname, 'r')
@@ -27,7 +27,7 @@ h5f.close()
 print("procesing layer")
 
 # grab the testing matrix from the confusion matrix
-test_matrix = conf_matrix[0:4788, 4789:9574]
+test_matrix = conf_matrix[0:4789, 4789:9575]
 # the min score is the best match
 b = np.argmin(test_matrix, axis=0)
 
@@ -36,6 +36,7 @@ inlier_fraction = 5/6.0
 
 p = np.zeros(b.size)
 matches = np.zeros(int(b.size - flen + flen_2))
+max_diff = 0
 
 for i in range(0, b.size - flen):
 
@@ -46,17 +47,16 @@ for i in range(0, b.size - flen):
 
     # linear regression
     pt = np.polyfit( np.arange(0, flen), b[i:i + flen], 1)
-    p[match_index] = pt[1]
+    p[match_index] = pt[0]
 
     # under vibration threshold
     stable = max_diff <= dt
-    # forward match
+    # forward match # What's with the -1 and +1? I think this should be checking positions?
     forward_match = np.abs(p[match_index] - 1) < st or np.abs(p[match_index] + 1) < st
 
-    # Nothing makes it through this filter
-    # Does it work in the MatLab version?
+    # Nothing makes it through this filter, despite it working in the matlab version
     if stable and forward_match:
-        matches[match_index] = pt[2] + pt[1] * 0.5 * flen
+        matches[match_index] = pt[1] + pt[0] * 0.5 * flen
 
 ### Compare to ground truth ###
 print("comparing to ground truth")
@@ -85,8 +85,8 @@ for ground_idx in range(start_second, end_second):
     value_fit3 = value_fit2 - start_first + 1
     value_fit4 = value_fit3[ np.where(value_fit3 > 0)[0].astype(int) ]
     
-    matris_idx = ground_idx - start_second + 1
-    ground_matrix[matris_idx, value_fit4] = 1
+    matrix_idx = ground_idx - start_second + 1
+    ground_matrix[matrix_idx, value_fit4] = 1
 
 for truth_idx in range(0, matches.size):
     
@@ -104,15 +104,9 @@ for truth_idx in range(0, matches.size):
         else:
             fp_num = fp_num + 1
             fp_value = [fp_value, truth_idx]
-            truth_x = np.ones(1, ground_row_idx.size) * truth_idx
 
-precision = tp_num / (tp_num + fp_num)
+precision = tp_num / float(tp_num + fp_num)
 print(precision)
-recall = tp_num / b.size
+recall = tp_num / float(b.size)
 print(recall)
-#precision_all = [precision_all, precision]
-#recall_all = [recall_all, recall]
-
-# save the results somehow
-
-# TODO: Are the indices messed up because numpy?
+ipdb.set_trace()
