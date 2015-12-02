@@ -12,7 +12,7 @@ from scipy.misc import imresize
 from copy import deepcopy
 
 # Smush the 5 images together into one, otherwise treat them separately
-smush = False#True
+smush = True
 
 # Create the full confusion matrix, including sections not needed
 full = True
@@ -24,7 +24,8 @@ colour = False
 #net_type = 'GoogLeNet'
 #net_type = 'AlexNet'
 #net_type = 'CaffeNet'
-net_type = 'OverFeat'
+#net_type = 'OverFeat'
+net_type = 'Cifar10'
 
 # Check the username, so the same code can work on all of our computers
 user = getpass.getuser()
@@ -176,7 +177,7 @@ if net_type == 'OverFeat':
   
   # For filename purposes
   layer = 'all'
-  layer = 14
+  layer = 10
   
   if layer == 'all':
     # Put all layers into one stacked confusion matrix
@@ -255,6 +256,14 @@ else:
     net = caffe.Net(caffe_root + 'models/bvlc_alexnet/deploy.prototxt',
                     caffe_root + 'models/bvlc_alexnet/bvlc_alexnet.caffemodel',
                     caffe.TEST)
+  elif net_type == 'Cifar10':
+    net = caffe.Net(caffe_root + 'examples/cifar10/cifar10_quick.prototxt',
+                    caffe_root + 'examples/cifar10/cifar10_quick_iter_5000.caffemodel.h5',
+                    caffe.TEST)
+  elif net_type == 'Cifar10Full':
+    net = caffe.Net(caffe_root + 'examples/cifar10/cifar10_full.prototxt',
+                    caffe_root + 'examples/cifar10/cifar10_full_iter_5000.caffemodel.h5',
+                    caffe.TEST)
 
   # input preprocessing: 'data' is the name of the input blob == net.inputs[0]
   transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
@@ -268,12 +277,16 @@ else:
   # They also have different names for each layer
   if net_type == 'GoogLeNet':
     batch_size = 10
-    layer = 'inception_4e/3x3'
+    layer = 'inception_3a/output'#'inception_4e/3x3'
     net.blobs['data'].reshape(batch_size,3,224,224) # GoogLeNet uses 224x224
   elif net_type == 'AlexNet' or net_type == 'CaffeNet':
     batch_size = 50
     layer = 'conv3'
     net.blobs['data'].reshape(batch_size,3,227,227) # AlexNet uses 227*227
+  if net_type == 'Cifar10' or net_type == 'Cifar10Full':
+    batch_size = 10
+    layer = 'conv2'
+    net.blobs['data'].reshape(batch_size,3,32,32) # Cifar10Net uses 32x32
 
   # Get all the features for the training images
   for batch in range(int(len(training_images) / batch_size)):
