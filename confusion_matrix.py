@@ -21,12 +21,13 @@ full = True
 colour = False
 
 # The type of pre-trained deep network to get the features from
-#net_type = 'GoogLeNet'
+net_type = 'GoogLeNet'
 #net_type = 'AlexNet'
 #net_type = 'CaffeNet'
 #net_type = 'OverFeat'
 #anet_type = 'Cifar10'
-net_type = 'Cifar10Full'
+#net_type = 'Cifar10Full'
+#net_type = 'Cifar10SoftLIF'
 
 # Check the username, so the same code can work on all of our computers
 user = getpass.getuser()
@@ -282,7 +283,16 @@ else:
   # They also have different names for each layer
   if net_type == 'GoogLeNet':
     batch_size = 10
-    layer = 'inception_3a/output'#'inception_4e/3x3'
+    layer = 'prob'
+    #layer = 'inception_3a/output'
+    layer = 'inception_3b/output'
+    #layer = 'inception_4a/output'
+    layer = 'inception_4b/output'
+    layer = 'inception_4c/output'
+    layer = 'inception_4d/output'
+    layer = 'inception_4e/output'
+    #layer = 'inception_5a/output'
+    layer = 'inception_5b/output'
     net.blobs['data'].reshape(batch_size,3,224,224) # GoogLeNet uses 224x224
   elif net_type == 'AlexNet' or net_type == 'CaffeNet':
     batch_size = 50
@@ -290,7 +300,7 @@ else:
     net.blobs['data'].reshape(batch_size,3,227,227) # AlexNet uses 227*227
   if 'Cifar10' in net_type:
     batch_size = 10
-    layer = 'conv3'
+    layer = 'conv1'
     net.blobs['data'].reshape(batch_size,3,32,32) # Cifar10Net uses 32x32
 
   # Get all the features for the training images
