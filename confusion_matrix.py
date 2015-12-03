@@ -25,7 +25,8 @@ colour = False
 #net_type = 'AlexNet'
 #net_type = 'CaffeNet'
 #net_type = 'OverFeat'
-net_type = 'Cifar10'
+#anet_type = 'Cifar10'
+net_type = 'Cifar10Full'
 
 # Check the username, so the same code can work on all of our computers
 user = getpass.getuser()
@@ -262,7 +263,11 @@ else:
                     caffe.TEST)
   elif net_type == 'Cifar10Full':
     net = caffe.Net(caffe_root + 'examples/cifar10/cifar10_full.prototxt',
-                    caffe_root + 'examples/cifar10/cifar10_full_iter_5000.caffemodel.h5',
+                    caffe_root + 'examples/cifar10/cifar10_full_iter_70000.caffemodel.h5',
+                    caffe.TEST)
+  elif net_type == 'Cifar10SoftLIF':
+    net = caffe.Net(caffe_root + 'examples/cifar10/cifar10_quick_softlif.prototxt',
+                    caffe_root + 'examples/cifar10/cifar10_quick_softlif_iter_5000.caffemodel.h5',
                     caffe.TEST)
 
   # input preprocessing: 'data' is the name of the input blob == net.inputs[0]
@@ -283,9 +288,9 @@ else:
     batch_size = 50
     layer = 'conv3'
     net.blobs['data'].reshape(batch_size,3,227,227) # AlexNet uses 227*227
-  if net_type == 'Cifar10' or net_type == 'Cifar10Full':
+  if 'Cifar10' in net_type:
     batch_size = 10
-    layer = 'conv2'
+    layer = 'conv3'
     net.blobs['data'].reshape(batch_size,3,32,32) # Cifar10Net uses 32x32
 
   # Get all the features for the training images
