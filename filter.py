@@ -95,7 +95,6 @@ for truth_idx in range(0, matches.size):
     
     # Maybe check if ground_row_idx is getting value that are not one?
 
-    # means we consider it to be a confident match
     if matches[truth_idx] != 0:
         truth_va = np.round(matches[truth_idx])
         if np.any(ground_row_idx == np.round(truth_va)):

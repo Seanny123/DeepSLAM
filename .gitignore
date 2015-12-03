@@ -2,6 +2,8 @@
 
 *.p
 *.h5
+data/
+dump/
 
 # Temporary Files
 
