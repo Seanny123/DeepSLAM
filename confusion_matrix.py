@@ -28,6 +28,8 @@ net_type = 'GoogLeNet'
 #anet_type = 'Cifar10'
 #net_type = 'Cifar10Full'
 #net_type = 'Cifar10SoftLIF'
+net_type = 'VGG16'
+net_type = 'VGG19'
 
 # Check the username, so the same code can work on all of our computers
 user = getpass.getuser()
@@ -270,6 +272,18 @@ else:
     net = caffe.Net(caffe_root + 'examples/cifar10/cifar10_quick_softlif.prototxt',
                     caffe_root + 'examples/cifar10/cifar10_quick_softlif_iter_5000.caffemodel.h5',
                     caffe.TEST)
+  elif net_type == 'Cifar10FullSoftLIF':
+    net = caffe.Net(caffe_root + 'examples/cifar10/cifar10_full_softlif.prototxt',
+                    caffe_root + 'examples/cifar10/cifar10_full_softlif_iter_70000.caffemodel.h5',
+                    caffe.TEST)
+  elif net_type == 'VGG16':
+    net = caffe.Net(caffe_root + 'models/vgg/VGG_ILSVRC_16_layers_deploy.prototxt',
+                    caffe_root + 'models/vgg/VGG_ILSVRC_16_layers.caffemodel',
+                    caffe.TEST)
+  elif net_type == 'VGG19':
+    net = caffe.Net(caffe_root + 'models/vgg/VGG_ILSVRC_19_layers_deploy.prototxt',
+                    caffe_root + 'models/vgg/VGG_ILSVRC_19_layers.caffemodel',
+                    caffe.TEST)
 
   # input preprocessing: 'data' is the name of the input blob == net.inputs[0]
   transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
@@ -283,7 +297,6 @@ else:
   # They also have different names for each layer
   if net_type == 'GoogLeNet':
     batch_size = 10
-    layer = 'prob'
     #layer = 'inception_3a/output'
     layer = 'inception_3b/output'
     #layer = 'inception_4a/output'
@@ -293,7 +306,12 @@ else:
     layer = 'inception_4e/output'
     #layer = 'inception_5a/output'
     layer = 'inception_5b/output'
+    layer = 'prob'
     net.blobs['data'].reshape(batch_size,3,224,224) # GoogLeNet uses 224x224
+  elif 'VGG' in net_type:
+    batch_size = 10
+    layer = 'conv4_4'
+    net.blobs['data'].reshape(batch_size,3,224,224) # VGG uses 224x224
   elif net_type == 'AlexNet' or net_type == 'CaffeNet':
     batch_size = 50
     layer = 'conv3'
