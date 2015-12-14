@@ -53,7 +53,27 @@ for fname in fnames:
     data += h5f[dname][:]
   h5f.close()
 
+prefix = 'conf_mat_smush_full_vgg19_'
+fnames = ['conv4_4.h5', 'conv5_4.h5',
+         ]
+for fname in fnames:
+  print(prefix + fname)
+  h5f = h5py.File(prefix + fname, 'r')
+  if data is None:
+    data = h5f[dname][:]
+  else:
+    data += h5f[dname][:]
+  h5f.close()
+
 print(data)
+
+h5f = h5py.File('conf_mat_sum.h5', 'w')
+h5f.create_dataset('dataset', data=data)
+h5f.close()
+
+h5f = h5py.File('conf_mat_avg.h5', 'w')
+h5f.create_dataset('dataset', data=data/21.0)
+h5f.close()
 
 # If multiple confusion matrices are saved, only display a specific layer
 if len(data.shape) == 3:
