@@ -7,13 +7,15 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+sns.set(font_scale=1.5)
+
 # dicts for converting layer name to num
-vgg19_num = {'conv4_4':1, 'conv5_4':2}
+vgg19_num = {'conv4_4':1, 
+             'conv5_3':2, 'conv5_4':3}
 
 googlenet_num = {'3a':1,'3b':2,'4a':3,'4b':4,'4c':5,'4d':6,'4e':7,'5a':8,'5b':9}
 
 
-fname = 'filter_res_avg.p'
 fname = 'filter_res_all.p'
 
 data = pickle.load(open(fname, 'rb'))
@@ -24,7 +26,7 @@ for name in data.keys():
   if 'googlenet' in name:
     net_type = 'GoogLeNet'
     layer_name = name[40:42]
-    layer_num = googlenet_num[layer_name]
+    layer_num = layer_name#googlenet_num[layer_name]
   elif 'overfeat' in name:
     net_type = 'OverFeat'
     layer_name = name[29:-3]
@@ -33,7 +35,7 @@ for name in data.keys():
     net_type = 'VGG19'
     layer_name = name[26:-3]
     layer_num = vgg19_num[layer_name]
-  elif 'caffenet' in name:
+  elif ('caffenet' in name) or ('alexnet' in name):
     net_type = 'AlexNet'
     layer_name = name[29:-3]
     layer_num = int(layer_name[4:])
@@ -49,44 +51,145 @@ for name in data.keys():
     net_type = 'NOTFOUND'
     layer_name = 'notfound'
   results = results.append({'Name': name, # TODO: get rid of conf_mat crap
-                            'Net': net_type,
+                            'Network': net_type,
                             'Layer': layer_name,
                             'Layer #': layer_num,
                             'Precision': data[name][0],
                             'Recall': data[name][1],
-                            'F1': data[name][2],
+                            'F1 Score': data[name][2],
                             'Boosted': False,
+                            'AVG':False,
                            }, ignore_index=True)
   
   results = results.append({'Name': name, # TODO: get rid of conf_mat crap
-                            'Net': net_type,
+                            'Network': net_type,
                             'Layer': layer_name,
                             'Layer #': layer_num,
                             'Precision': data[name][3],
                             'Recall': data[name][4],
-                            'F1': data[name][5],
+                            'F1 Score': data[name][5],
                             'Boosted': True,
+                            'AVG':False,
                            }, ignore_index=True)
 
-googlenet = results[(results['Net'] == 'GoogLeNet')]
-overfeat = results[(results['Net'] == 'OverFeat')]
-cifar10 = results[(results['Net'] == 'Cifar10')]
-alexnet = results[(results['Net'] == 'AlexNet')]
-vgg19 = results[(results['Net'] == 'VGG19')]
+# Get the average data
+fname = 'filter_res_avg.p'
+data = pickle.load(open(fname, 'rb'))
+for name in data.keys():
+  layer_name = None
+  layer_num = None
+  if 'googlenet' in name:
+    net_type = 'GoogLeNet'
+  elif 'overfeat' in name:
+    net_type = 'OverFeat'
+  elif 'vgg19' in name:
+    net_type = 'VGG19'
+  elif ('caffenet' in name) or ('alexnet' in name):
+    net_type = 'AlexNet'
+  elif 'cifar10' in name:
+    net_type = 'Cifar10'
+  elif 'all_net' in name:
+    net_type = 'NetworkAverage'
+    continue
+  elif 'all_layer' in name:
+    net_type = 'LayerAverage'
+    net_type = 'Combined'
+  else:
+    net_type = 'NOTFOUND'
+    layer_name = 'notfound'
+    continue
+  results = results.append({'Name': name, # TODO: get rid of conf_mat crap
+                            'Network': net_type,
+                            'Layer': layer_name,
+                            'Layer #': layer_num,
+                            'Precision': data[name][0],
+                            'Recall': data[name][1],
+                            'F1 Score': data[name][2],
+                            'Boosted': False,
+                            'AVG':True,
+                           }, ignore_index=True)
+  
+  results = results.append({'Name': name, # TODO: get rid of conf_mat crap
+                            'Network': net_type,
+                            'Layer': layer_name,
+                            'Layer #': layer_num,
+                            'Precision': data[name][3],
+                            'Recall': data[name][4],
+                            'F1 Score': data[name][5],
+                            'Boosted': True,
+                            'AVG':True,
+                           }, ignore_index=True)
 
-bar = sns.factorplot('Layer #', 'F1', 'Boosted', data=googlenet, kind='bar', size=6,
-                     legend=True)
-bar = sns.factorplot('Layer #', 'F1', 'Boosted', data=overfeat, kind='bar', size=6,
-                     legend=True)
-bar = sns.factorplot('Layer #', 'F1', 'Boosted', data=cifar10, kind='bar', size=6,
-                     legend=True)
-bar = sns.factorplot('Layer #', 'F1', 'Boosted', data=alexnet, kind='bar', size=6,
-                     legend=True)
-bar = sns.factorplot('Layer #', 'F1', 'Boosted', data=vgg19, kind='bar', size=6,
-                     legend=True)
+if True:#fname == 'filter_res_avg.p':
+  kind = 'bar'
+  title = 'Layer Averages'
+  order = ['Cifar10', 'AlexNet', 'OverFeat', 'GoogLeNet', 'VGG19', 'Combined']
 
+  if True: # Show max and boosted only
+    results = results[(results['Boosted'] == True)]
 
-bar = sns.factorplot('Layer', 'F1', 'Boosted', data=results, kind='bar', size=6,
-                     legend=True)
+    # Only look at non-averages for max
+    max_val = results[(results['AVG'] == False)]
+    max_val = max_val.groupby(['Network'], sort=False)['F1 Score'].max()
+    
+    max_add = pd.DataFrame()
+    for name, value in max_val.iteritems():
+      max_add = max_add.append({'Network':name,
+                                'F1 Score':value,
+                                'AVG':False,
+                               }, ignore_index=True)
 
+    results = results[(results['AVG'] == True)]
+
+    results = pd.concat([max_add, results])
+
+    bar = sns.factorplot('Network', 'F1 Score', 'AVG', data=results, kind=kind, size=6,
+                         legend=False, order=order)
+    
+    bar.axes[0,0].set_title(title)
+    handles, labels = bar.axes[0,0].get_legend_handles_labels()
+    bar.axes[0,0].legend(handles, ['Max', 'Average'], loc='center left', bbox_to_anchor=(1, 0.5))
+    
+    bar = sns.factorplot('Network', 'Precision', 'AVG', data=results,
+                         kind=kind, size=6, legend=True, order=order)
+    bar.axes[0,0].set_title(title)
+    
+    bar = sns.factorplot('Network', 'Recall', 'AVG', data=results, kind=kind, size=6,
+                         legend=True, order=order)
+    bar.axes[0,0].set_title(title)
+
+  else: # show boosted and non-boosted and not max
+    results = results[(results['AVG'] == True)]
+    bar = sns.factorplot('Network', 'F1 Score', 'Boosted', data=results, kind=kind, size=6,
+                         legend=True, order=order)
+    bar.axes[0,0].set_title(title)
+    
+    bar = sns.factorplot('Network', 'Precision', 'Boosted', data=results,
+                         kind=kind, size=6, legend=True, order=order)
+    bar.axes[0,0].set_title(title)
+    
+    bar = sns.factorplot('Network', 'Recall', 'Boosted', data=results, kind=kind, size=6,
+                         legend=True, order=order)
+    bar.axes[0,0].set_title(title)
+
+else:
+  results = results[(results['AVG'] == False)]
+  kind = 'point'
+  network_names = ['GoogLeNet', 'OverFeat', 'Cifar10', 'AlexNet', 'VGG19']
+  for name in network_names:
+
+    net = results[(results['Network'] == name)]
+    bar = sns.factorplot('Layer #', 'F1 Score', 'Boosted', data=net,
+                         kind=kind, size=8, legend=True)
+    bar.axes[0,0].set_title(name)
+    if name != 'GoogLeNet':
+      labels = [int(item.get_text()) for item in bar.axes[0,0].get_xticklabels()]
+      bar.axes[0,0].set_xticklabels(labels)
+
+  """
+  kind = 'bar'
+  bar = sns.factorplot('Layer', 'F1 Score', 'Boosted', data=results, kind=kind, size=6,
+                       legend=True)
+  bar.axes[0,0].set_title('All Layers')
+  """
 plt.show()
