@@ -23,8 +23,8 @@ def main():
   if len(sys.argv) == 2:
     fnames = read_file(sys.argv[1])
   else:
-    fnames = read_file('googlenet.txt')
-    sys.argv.append('googlenet.txt') # for file name consistency
+    fnames = read_file('all.txt')
+    sys.argv.append('all.txt') # for file name consistency
   #fname = '/home/bjkomer/deep_learning/DeepSLAM/conf_mat_smush_full_googlenet_inception_4b-output.h5'
   #fname = '/home/bjkomer/deep_learning/DeepSLAM/conf_mat_avg.h5'
   results = []

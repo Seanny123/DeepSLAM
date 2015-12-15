@@ -87,7 +87,8 @@ h5f.close()
 data = None
 
 prefix = 'conf_mat_smush_full_vgg19_'
-fnames = ['conv4_4.h5', 'conv5_4.h5',
+fnames = ['conv4_4.h5', 
+          'conv5_3.h5', 'conv5_4.h5',
          ]
 for fname in fnames:
   print(prefix + fname)

@@ -128,35 +128,28 @@ if True:#fname == 'filter_res_avg.p':
   if True: # Show max and boosted only
     results = results[(results['Boosted'] == True)]
 
-    # Only look at non-averages for max
-    max_val = results[(results['AVG'] == False)]
-    max_val = max_val.groupby(['Network'], sort=False)['F1 Score'].max()
-    
-    max_add = pd.DataFrame()
-    for name, value in max_val.iteritems():
-      max_add = max_add.append({'Network':name,
-                                'F1 Score':value,
-                                'AVG':False,
-                               }, ignore_index=True)
+    for metric in ['F1 Score', 'Precision', 'Recall']:
+      # Only look at non-averages for max
+      max_val = results[(results['AVG'] == False)]
+      max_val = max_val.groupby(['Network'], sort=False)['F1 Score'].max()
+      
+      max_add = pd.DataFrame()
+      for name, value in max_val.iteritems():
+        max_add = max_add.append({'Network':name,
+                                  metric:value,
+                                  'AVG':False,
+                                 }, ignore_index=True)
 
-    results = results[(results['AVG'] == True)]
+      avg_results = results[(results['AVG'] == True)]
 
-    results = pd.concat([max_add, results])
+      avg_results = pd.concat([max_add, avg_results])
 
-    bar = sns.factorplot('Network', 'F1 Score', 'AVG', data=results, kind=kind, size=6,
-                         legend=False, order=order)
-    
-    bar.axes[0,0].set_title(title)
-    handles, labels = bar.axes[0,0].get_legend_handles_labels()
-    bar.axes[0,0].legend(handles, ['Max', 'Average'], loc='center left', bbox_to_anchor=(1, 0.5))
-    
-    bar = sns.factorplot('Network', 'Precision', 'AVG', data=results,
-                         kind=kind, size=6, legend=True, order=order)
-    bar.axes[0,0].set_title(title)
-    
-    bar = sns.factorplot('Network', 'Recall', 'AVG', data=results, kind=kind, size=6,
-                         legend=True, order=order)
-    bar.axes[0,0].set_title(title)
+      bar = sns.factorplot('Network', metric, 'AVG', data=avg_results, kind=kind, size=6,
+                           legend=False, order=order)
+      
+      bar.axes[0,0].set_title(title)
+      handles, labels = bar.axes[0,0].get_legend_handles_labels()
+      bar.axes[0,0].legend(handles, ['Max', 'Average'], loc='center left', bbox_to_anchor=(1, 0.5))
 
   else: # show boosted and non-boosted and not max
     results = results[(results['AVG'] == True)]
