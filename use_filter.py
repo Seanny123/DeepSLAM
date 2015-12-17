@@ -33,7 +33,11 @@ def main():
   for fname in fnames:
     print(fname)
     h5f = h5py.File(root + fname.rstrip(), 'r')
-    conf_matrix = h5f[dname][:]
+    #conf_matrix = h5f[dname][:]
+    if ('conf_mat' in fname) and ('full' not in fname):
+        conf_matrix = h5f[dname][:] # Only the train vs test data
+    else:
+        conf_matrix = h5f[dname][0:4789, 4789:9575] # Only the train vs test data
     if avg_matrix is None:
       avg_matrix = conf_matrix
     else:
@@ -60,9 +64,9 @@ def read_file(file_name):
     ret = f.readlines()
   return ret
 
-def filter_mat(conf_matrix):
+def filter_mat(test_matrix):
   # grab the testing matrix from the confusion matrix
-  test_matrix = conf_matrix[0:4789, 4789:9575]
+  #test_matrix = conf_matrix[0:4789, 4789:9575]
   # the min score is the best match
   b = np.argmin(test_matrix, axis=0)
 
@@ -148,9 +152,9 @@ def filter_mat(conf_matrix):
   return (precision, recall, f1)
 
 
-def filter_boost_mat(conf_matrix):
+def filter_boost_mat(test_matrix):
     # grab the testing matrix from the confusion matrix
-    test_matrix = conf_matrix[0:4789, 4789:9575]
+    #test_matrix = conf_matrix[0:4789, 4789:9575]
     # the min score is the best match
     b = np.argmin(test_matrix, axis=0)
 

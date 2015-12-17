@@ -21,7 +21,10 @@ if len(sys.argv) == 3:
 
 h5f = h5py.File(fname, 'r')
 #data = h5f[dname][:] # Everything
-data = h5f[dname][0:4789, 4789:9575] # Only the train vs test data
+if ('conf_mat' in fname) and ('full' not in fname):
+    data = h5f[dname][:] # Only the train vs test data
+else:
+    data = h5f[dname][0:4789, 4789:9575] # Only the train vs test data
 h5f.close()
 
 print(data)

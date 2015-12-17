@@ -25,8 +25,12 @@ results = pd.DataFrame()
 for name in data.keys():
   if 'googlenet' in name:
     net_type = 'GoogLeNet'
-    layer_name = name[40:42]
-    layer_num = layer_name#googlenet_num[layer_name]
+    if 'full' in name:
+      layer_name = name[40:42]
+      layer_num = layer_name#googlenet_num[layer_name]
+    else:
+      layer_name = name[25:30]
+      layer_num = layer_name[-1]
   elif 'overfeat' in name:
     net_type = 'OverFeat'
     layer_name = name[29:-3]
@@ -37,7 +41,10 @@ for name in data.keys():
     layer_num = vgg19_num[layer_name]
   elif ('caffenet' in name) or ('alexnet' in name):
     net_type = 'AlexNet'
-    layer_name = name[29:-3]
+    if 'full' in name:
+      layer_name = name[29:-3]
+    else:
+      layer_name = name[24:-3]
     layer_num = int(layer_name[4:])
   elif 'cifar10full' in name:
     net_type = 'Cifar10'
@@ -169,16 +176,27 @@ else:
   results = results[(results['AVG'] == False)]
   kind = 'point'
   network_names = ['GoogLeNet', 'OverFeat', 'Cifar10', 'AlexNet', 'VGG19']
+  # Silly things because Python is weird
+  tmp = range(22)
+  tmp.remove(1)
+  order = {'GoogLeNet':['1', '2', '3a','3b','4a','4b','4c','4d','4e','5a','5b'],
+           'OverFeat':tmp,
+           'Cifar10':[1,2,3],
+           'AlexNet':[1,2,3,4],
+           'VGG19':[1,2,3]
+          }
   for name in network_names:
 
     net = results[(results['Network'] == name)]
     bar = sns.factorplot('Layer #', 'F1 Score', 'Boosted', data=net,
-                         kind=kind, size=8, legend=True)
+                         kind=kind, size=8, legend=False, order=order[name])
     bar.axes[0,0].set_title(name)
+    
     if name != 'GoogLeNet':
       labels = [int(item.get_text()) for item in bar.axes[0,0].get_xticklabels()]
       bar.axes[0,0].set_xticklabels(labels)
-
+    handles, labels = bar.axes[0,0].get_legend_handles_labels()
+    bar.axes[0,0].legend(handles, ['Regular', 'Boosted'], loc='center left', bbox_to_anchor=(1, 0.5))
   """
   kind = 'bar'
   bar = sns.factorplot('Layer', 'F1 Score', 'Boosted', data=results, kind=kind, size=6,
