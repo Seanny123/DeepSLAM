@@ -8,7 +8,7 @@ dname = 'dataset'
 
 prefix = 'conf_mat_smush_full_googlenet_inception_'
 fnames = ['3a-output.h5', '3b-output.h5',
-          '4a-output.h5', '4b-output.h5', 
+          '4a-output.h5', '4b-output.h5',
           '4c-output.h5', '4d-output.h5',
           '4e-output.h5',
           '5a-output.h5', '5b-output.h5'
@@ -29,8 +29,7 @@ for fname in fnames:
   h5f.close()
 
 prefix = 'conf_mat_smush_googlenet_'
-fnames = ['pool1-norm1.h5', 'conv2-norm2.h5',
-         ]
+fnames = ['pool1-norm1.h5', 'conv2-norm2.h5']
 
 for fname in fnames:
   print(prefix + fname)
@@ -54,9 +53,9 @@ fnames = [
           '8.h5', '9.h5',
           '10.h5', '11.h5',
           '10.h5', '11.h5',
-          '12.h5', '13.h5', 
+          '12.h5', '13.h5',
           '14.h5', '15.h5',
-          '16.h5', '17.h5', 
+          '16.h5', '17.h5',
          ]
 for fname in fnames:
   print(prefix + fname)
@@ -107,7 +106,7 @@ h5f.close()
 data = None
 
 prefix = 'conf_mat_smush_full_vgg19_'
-fnames = ['conv4_4.h5', 
+fnames = ['conv4_4.h5',
           'conv5_3.h5', 'conv5_4.h5',
          ]
 for fname in fnames:

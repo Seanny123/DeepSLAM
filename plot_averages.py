@@ -1,17 +1,13 @@
 # Create the bar chart for the averaging comparison
-import numpy as np
-import ipdb
-import sys
-import cPickle as pickle
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
 sns.set(font_scale=1.5)
 
-layer_names=['GoogleNet Layer 1', 'AlexNet Layer 2', 
-             'OverFeat Average', 'All Layers',
-             'Best Combination']
+layer_names = ['GoogleNet Layer 1', 'AlexNet Layer 2',
+               'OverFeat Average', 'All Layers',
+               'Best Combination']
 
 results = pd.DataFrame()
 results = results.append({
@@ -42,10 +38,10 @@ results = results.append({
 
 
 bar = sns.factorplot('Layer', 'F1 Score', data=results,
-                     kind='bar', size=8, legend=False, 
+                     kind='bar', size=8, legend=False,
                      order=layer_names)
-axes = bar.axes[0,0]
+axes = bar.axes[0, 0]
 axes.set_title('Combined Improvement')
-axes.set_ylim(0.7,0.9)
+axes.set_ylim(0.7, 0.9)
 
 plt.show()

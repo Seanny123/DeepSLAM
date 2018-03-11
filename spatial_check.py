@@ -1,5 +1,6 @@
 from constants import *
 
+
 def spatial_check(conf_matrix, hypothesis):
     if hypothesis - DEE > 0:
         start = hypothesis - DEE

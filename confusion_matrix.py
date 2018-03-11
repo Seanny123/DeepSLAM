@@ -41,10 +41,6 @@ elif user == 'bjkomer':
   caffe_root = '/home/bjkomer/caffe/'
   overfeat_root = '/home/bjkomer/OverFeat/'
   path_prefix = '/home/bjkomer/deep_learning/datasets/DatasetEynsham/Images/'
-elif user == 'saubin': #TODO: put in Sean's actual path, I just guessed for now
-  caffe_root = '/home/saubin/src/caffe/'
-  overfeat_root = '/home/saubin/src/OverFeat/'
-  path_prefix = '/home/saubin/src/datasets/DatasetEynsham/Images/'
 else:
   caffe_root = '/home/ctnuser/saubin/src/caffe/'
   overfeat_root = '/home/ctnuser/saubin/src/OverFeat/'
@@ -53,10 +49,6 @@ else:
 sys.path.insert(0, caffe_root + 'python')
 
 import caffe
-
-# Open an IPython session if an exception is found
-from IPython.core import ultratb
-sys.excepthook = ultratb.FormattedTB(mode='Verbose', color_scheme='Linux', call_pdb=1)
 
 # Stuff for optional plotting
 plt.rcParams['figure.figsize'] = (10, 10)
@@ -87,7 +79,7 @@ def smush_images(im_list):
     return np.concatenate( map(lambda x: caffe.io.load_image(path_prefix + x), im_list) )
 
 def process_overfeat_image(image):
-    
+
     # resize and crop into a 231x231 image
     h0 = image.shape[0]
     w0 = image.shape[1]
@@ -119,12 +111,12 @@ def load_overfeat_image(im):
 
 
 def smush_overfeat_images(im_list):
-    
+
     return process_overfeat_image(np.concatenate( map(lambda x:
                                                       imread(path_prefix + x),
                                                       im_list) ))
 
-    
+
 
 index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
 
@@ -175,14 +167,14 @@ training_features = []
 
 # OverFeat does not use caffe
 if net_type == 'OverFeat':
-  
+
   # OverFeat has 22 layers, including original image
   num_layers = 22
-  
+
   # For filename purposes
   layer = 'all'
   layer = 10
-  
+
   if layer == 'all':
     # Put all layers into one stacked confusion matrix
     confusion_matrix = np.zeros((num_layers, len(training_images), len(testing_images)))
@@ -191,7 +183,7 @@ if net_type == 'OverFeat':
     confusion_matrix = np.zeros((len(training_images), len(testing_images)))
 
   overfeat.init(overfeat_root + 'data/default/net_weight_0', 0)
-  
+
   for i in range(len(training_images)):
 
     print("Training Image %s of %s" % (i, len(training_images)))
@@ -202,7 +194,7 @@ if net_type == 'OverFeat':
       image = load_overfeat_image(training_images[i])
 
     b = overfeat.fprop(image)
-    
+
     if layer == 'all':
       # Calculate features for all layers at once
       features = []
@@ -212,7 +204,7 @@ if net_type == 'OverFeat':
       training_features.append(features)
     else:
       training_features.append(deepcopy(overfeat.get_output(layer)))
-  
+
   for i in range(len(testing_images)):
 
     print("Testing Image %s of %s" % (i, len(testing_images)))
@@ -228,11 +220,11 @@ if net_type == 'OverFeat':
       if layer == 'all':
         for n in range(num_layers):
           feat = overfeat.get_output(n)
-        
+
           confusion_matrix[n,j,i] = np.linalg.norm(feat - training_features[j][n])
       else:
         feat = overfeat.get_output(layer)
-      
+
         confusion_matrix[j,i] = np.linalg.norm(feat - training_features[j])
 
   # Convert to string in case it is a layer number, for use in the filename
@@ -241,7 +233,7 @@ if net_type == 'OverFeat':
 # Use caffe for all other models
 else:
   confusion_matrix = np.zeros((len(training_images), len(testing_images)))
-  
+
   if user == 'ctnuser':
     caffe.set_mode_gpu()
   else:

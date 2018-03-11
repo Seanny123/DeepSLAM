@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 sns.set(font_scale=1.5)
 
 # dicts for converting layer name to num
-vgg19_num = {'conv4_4':1, 
-             'conv5_3':2, 'conv5_4':3}
+vgg19_num = {'conv4_4': 1,
+             'conv5_3': 2, 'conv5_4': 3}
 
-googlenet_num = {'3a':1,'3b':2,'4a':3,'4b':4,'4c':5,'4d':6,'4e':7,'5a':8,'5b':9}
+googlenet_num = {'3a': 1, '3b': 2, '4a': 3, '4b': 4, '4c': 5, '4d': 6, '4e': 7, '5a': 8, '5b': 9}
 
 
 fname = 'filter_res_all.p'
@@ -67,7 +67,7 @@ for name in data.keys():
                             'Boosted': False,
                             'AVG':False,
                            }, ignore_index=True)
-  
+
   results = results.append({'Name': name, # TODO: get rid of conf_mat crap
                             'Network': net_type,
                             'Layer': layer_name,
@@ -115,7 +115,7 @@ for name in data.keys():
                             'Boosted': False,
                             'AVG':True,
                            }, ignore_index=True)
-  
+
   results = results.append({'Name': name, # TODO: get rid of conf_mat crap
                             'Network': net_type,
                             'Layer': layer_name,
@@ -139,7 +139,7 @@ if True:#fname == 'filter_res_avg.p':
       # Only look at non-averages for max
       max_val = results[(results['AVG'] == False)]
       max_val = max_val.groupby(['Network'], sort=False)['F1 Score'].max()
-      
+
       max_add = pd.DataFrame()
       for name, value in max_val.iteritems():
         max_add = max_add.append({'Network':name,
@@ -153,7 +153,7 @@ if True:#fname == 'filter_res_avg.p':
 
       bar = sns.factorplot('Network', metric, 'AVG', data=avg_results, kind=kind, size=6,
                            legend=False, order=order)
-      
+
       bar.axes[0,0].set_title(title)
       handles, labels = bar.axes[0,0].get_legend_handles_labels()
       bar.axes[0,0].legend(handles, ['Max', 'Average'], loc='center left', bbox_to_anchor=(1, 0.5))
@@ -163,11 +163,11 @@ if True:#fname == 'filter_res_avg.p':
     bar = sns.factorplot('Network', 'F1 Score', 'Boosted', data=results, kind=kind, size=6,
                          legend=True, order=order)
     bar.axes[0,0].set_title(title)
-    
+
     bar = sns.factorplot('Network', 'Precision', 'Boosted', data=results,
                          kind=kind, size=6, legend=True, order=order)
     bar.axes[0,0].set_title(title)
-    
+
     bar = sns.factorplot('Network', 'Recall', 'Boosted', data=results, kind=kind, size=6,
                          legend=True, order=order)
     bar.axes[0,0].set_title(title)
@@ -191,7 +191,7 @@ else:
     bar = sns.factorplot('Layer #', 'F1 Score', 'Boosted', data=net,
                          kind=kind, size=8, legend=False, order=order[name])
     bar.axes[0,0].set_title(name)
-    
+
     if name != 'GoogLeNet':
       labels = [int(item.get_text()) for item in bar.axes[0,0].get_xticklabels()]
       bar.axes[0,0].set_xticklabels(labels)

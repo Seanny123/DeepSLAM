@@ -3,7 +3,6 @@ import h5py
 import scipy.sparse
 import scipy.io
 from constants import *
-import ipdb
 import os
 import pickle
 
@@ -13,13 +12,7 @@ import pickle
 flen = DEE
 flen_2 = 3
 dt = EPSILON
-st = 0.75 #kind of equivalent to sigma
-"""
-import sys
-from IPython.core import ultratb
-sys.excepthook = ultratb.FormattedTB(mode='Verbose',
-     color_scheme='Linux', call_pdb=1)
-"""
+st = 0.75  # kind of equivalent to sigma
 
 res_dict = {}
 
@@ -30,7 +23,7 @@ for fname in os.listdir("good"):
 
     # load the confusion matrix
     dname = "dataset"
-    print("opening file %s" %fname)
+    print("opening file %s" % fname)
     h5f = h5py.File("good/"+fname, 'r')
     conf_matrix = h5f[dname][:]
     h5f.close()

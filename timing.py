@@ -40,10 +40,6 @@ elif user == 'bjkomer':
   caffe_root = '/home/bjkomer/caffe/'
   overfeat_root = '/home/bjkomer/OverFeat/'
   path_prefix = '/home/bjkomer/deep_learning/datasets/DatasetEynsham/Images/'
-elif user == 'saubin': #TODO: put in Sean's actual path, I just guessed for now
-  caffe_root = '/home/saubin/src/caffe/'
-  overfeat_root = '/home/saubin/src/OverFeat/'
-  path_prefix = '/home/saubin/src/datasets/DatasetEynsham/Images/'
 else:
   caffe_root = '/home/ctnuser/saubin/src/caffe/'
   overfeat_root = '/home/ctnuser/saubin/src/OverFeat/'
@@ -53,18 +49,18 @@ sys.path.insert(0, caffe_root + 'python')
 
 import caffe
 
-# Open an IPython session if an exception is found
-from IPython.core import ultratb
-sys.excepthook = ultratb.FormattedTB(mode='Verbose', color_scheme='Linux', call_pdb=1)
-
 # Stuff for optional plotting
 plt.rcParams['figure.figsize'] = (10, 10)
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
-# take an array of shape (n, height, width) or (n, height, width, channels)
-# and visualize each (height, width) thing in a grid of size approx. sqrt(n) by sqrt(n)
+
 def vis_square(data, padsize=1, padval=0):
+    """
+    take an array of shape (n, height, width) or (n, height, width, channels)
+    and visualize each (height, width) thing in a grid of size approx. sqrt(n) by sqrt(n)
+    """
+
     data -= data.min()
     data /= data.max()
 
@@ -81,12 +77,14 @@ def vis_square(data, padsize=1, padval=0):
     plt.figure()
     #plt.show()
 
+
 def smush_images(im_list):
 
     return np.concatenate( map(lambda x: caffe.io.load_image(path_prefix + x), im_list) )
 
+
 def process_overfeat_image(image):
-    
+
     # resize and crop into a 231x231 image
     h0 = image.shape[0]
     w0 = image.shape[1]
@@ -112,18 +110,18 @@ def process_overfeat_image(image):
 
     return image
 
+
 def load_overfeat_image(im):
     # read image
     return process_overfeat_image(imread(path_prefix + im))
 
 
 def smush_overfeat_images(im_list):
-    
+
     return process_overfeat_image(np.concatenate( map(lambda x:
                                                       imread(path_prefix + x),
                                                       im_list) ))
 
-    
 
 index_mat = sio.loadmat(path_prefix + 'IndexToFilename.mat')['IndexToFilename'][0]
 
@@ -183,14 +181,14 @@ for net_type in net_types:
         if net_type == 'OverFeat':
 
           overfeat.init(overfeat_root + 'data/default/net_weight_0', 0)
-          
+
           start = time.clock()
           for i in range(num_image):
 
             image = smush_overfeat_images(training_images[i])
 
             b = overfeat.fprop(image)
-          
+
           end = time.clock()
           elapsed = end - start
           print(elapsed)
@@ -198,7 +196,7 @@ for net_type in net_types:
 
         # Use caffe for all other models
         else:
-          
+
           if user == 'ctnuser':
             caffe.set_mode_gpu()
           else:
@@ -279,6 +277,6 @@ print(timing_data)
 fname = 'timing_data.p'
 
 # Save to HDF5 format
-print( "Saving Timing Data to Pickle File..." )
-pickle.dump( timing_data, open(fname, 'wb') )
-print( "Saving Complete!" )
+print("Saving Timing Data to Pickle File...")
+pickle.dump(timing_data, open(fname, 'wb'))
+print("Saving Complete!")

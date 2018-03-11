@@ -1,15 +1,22 @@
-# Output Files
+# Input/Output Files
 
 *.p
 *.h5
+*.mat
 data/
 dump/
+good/
 
 # Temporary Files
 
 *.swp
+*.pyc
 
 # Images
 
 *.jpg
 *.png
+
+# IDE files
+
+.idea
